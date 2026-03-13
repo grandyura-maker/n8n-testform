@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Тестовая форма заявок</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f4f4f5;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 40px 16px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 32px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    h1 { font-size: 1.4rem; margin-bottom: 8px; }
+    .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 24px; }
+    .field { margin-bottom: 16px; }
+    label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 4px; color: #333; }
+    .required::after { content: " *"; color: #e53e3e; }
+    input, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus { border-color: #6366f1; }
+    textarea { resize: vertical; min-height: 90px; }
+    .webhook-field {
+      background: #fafafa;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+      border: 1px solid #e5e7eb;
+    }
+    .webhook-field label { color: #6366f1; }
+    .webhook-field input { background: white; }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #6366f1;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #4f46e5; }
+    button:disabled { background: #a5b4fc; cursor: not-allowed; }
+    .status {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      display: none;
+    }
+    .status.success { background: #d1fae5; color: #065f46; display: block; }
+    .status.error { background: #fee2e2; color: #991b1b; display: block; }
+    .divider { border: none; border-top: 1px solid #e5e7eb; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Тестовая форма заявок</h1>
+    <p class="subtitle">Для отладки n8n вебхуков</p>
+
+    <div class="webhook-field">
+      <label for="webhookUrl">n8n Webhook URL</label>
+      <input type="url" id="webhookUrl" placeholder="https://your-n8n.com/webhook/..." />
+    </div>
+
+    <hr class="divider">
+
+    <div class="field">
+      <label class="required" for="firstName">Имя</label>
+      <input type="text" id="firstName" placeholder="Иван" required />
+    </div>
+    <div class="field">
+      <label class="required" for="lastName">Фамилия</label>
+      <input type="text" id="lastName" placeholder="Иванов" required />
+    </div>
+    <div class="field">
+      <label class="required" for="phone">Телефон</label>
+      <input type="tel" id="phone" placeholder="+7 900 000 00 00" required />
+    </div>
+    <div class="field">
+      <label class="required" for="email">Email</label>
+      <input type="email" id="email" placeholder="ivan@example.com" required />
+    </div>
+    <div class="field">
+      <label class="required" for="message">Сообщение</label>
+      <textarea id="message" placeholder="Текст заявки..." required></textarea>
+    </div>
+    <div class="field">
+      <label for="company">Компания</label>
+      <input type="text" id="company" placeholder="ООО Пример" />
+    </div>
+    <div class="field">
+      <label for="source">Откуда узнали</label>
+      <input type="text" id="source" placeholder="Google, реклама, знакомый..." />
+    </div>
+
+    <button id="submitBtn" onclick="submitForm()">Отправить заявку</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+async function submitForm() {
+      const webhookUrl = document.getElementById('webhookUrl').value.trim();
+      if (!webhookUrl) { showStatus('Вставь URL вебхука в поле сверху', 'error'); return; }
+
+      const required = ['firstName','lastName','phone','email','message'];
+      for (const id of required) {
+        if (!document.getElementById(id).value.trim()) {
+          showStatus('Заполни все обязательные поля', 'error'); return;
+        }
+      }
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Отправляю...';
+
+      const payload = {
+        firstName: document.getElementById('firstName').value.trim(),
+        lastName:  document.getElementById('lastName').value.trim(),
+        phone:     document.getElementById('phone').value.trim(),
+        email:     document.getElementById('email').value.trim(),
+        message:   document.getElementById('message').value.trim(),
+        company:   document.getElementById('company').value.trim() || null,
+        source:    document.getElementById('source').value.trim() || null,
+        submittedAt: new Date().toISOString()
+      };
+
+      try {
+        const res = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          showStatus('Заявка отправлена успешно!', 'success');
+        } else {
+          showStatus(`Ошибка: ${res.status} ${res.statusText}`, 'error');
+        }
+      } catch (e) {
+        showStatus('Не удалось отправить. Проверь URL вебхука и CORS-настройки n8n.', 'error');
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Отправить заявку';
+    }
+
+    function showStatus(msg, type) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'status ' + type;
+    }
+  </script>
+</body>
+</html>
